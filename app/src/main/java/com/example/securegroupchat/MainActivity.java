@@ -126,7 +126,6 @@ public class MainActivity extends AppCompatActivity {
         }
         else if(resultCode==RESULT_OK&&requestCode==RC_PHOTO_PICKER)
         {
-            Toast.makeText(MainActivity.this,"successful",Toast.LENGTH_SHORT).show();
             Uri selectedImageUri=data.getData();
             final StorageReference photoRef=
                     mChatPhotosReference.child(selectedImageUri.getLastPathSegment());
@@ -151,8 +150,15 @@ public class MainActivity extends AppCompatActivity {
                     if(task.isSuccessful())
                     {
                         Uri downloadUri=task.getResult();
-                        MessageModel messageModel = new MessageModel(null,mUsername,downloadUri.toString());
-                        mMessagesDatabaseReference.push().setValue(messageModel);
+                        try {
+                            String encryptPhoto = encrypt(downloadUri.toString(), pwdtext);
+                            MessageModel messageModel = new MessageModel(null,mUsername,encryptPhoto);
+                            mMessagesDatabaseReference.push().setValue(messageModel);
+                            Toast.makeText(MainActivity.this,"Image Successful Uploaded",Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            Toast.makeText(MainActivity.this,"Failed To Encrypt Photo",Toast.LENGTH_SHORT).show();
+                            e.printStackTrace();
+                        }
                     }
                     else
                     {
@@ -202,15 +208,27 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
                     MessageModel messageModel = snapshot.getValue(MessageModel.class);
-                    String to_decrypt=messageModel.getText();
-                    String decrypted="";
-                    try {
-                        decrypted=decrypt(to_decrypt,pwdtext);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    if (messageModel.getText() != null) {
+                        String to_decrypt=messageModel.getText();
+                        String decrypted="";
+                        try {
+                            decrypted=decrypt(to_decrypt,pwdtext);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        messageModel.setText(decrypted);
+                        mMessageAdapter.add(messageModel);
+                    } else {
+                        String to_decrypt=messageModel.getPhotoUrl();
+                        String decrypted="";
+                        try {
+                            decrypted=decrypt(to_decrypt,pwdtext);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        messageModel.setPhotoUrl(decrypted);
+                        mMessageAdapter.add(messageModel);
                     }
-                    messageModel.setText(decrypted);
-                    mMessageAdapter.add(messageModel);
                 }
 
                 @Override
